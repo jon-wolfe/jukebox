@@ -176,13 +176,14 @@ def readTT(button_group):
     return results
 
 def get_button():
+    total = ''
     for (group, letters) in button_map:
         pressed = readTT(group)
         if max(pressed):
             for (val,letter) in zip(pressed,letters):
                 if val:
-                    return letter
-    return None
+                    total+=letter
+    return total
 
 while(1):
     print(get_button())
