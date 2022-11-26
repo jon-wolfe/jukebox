@@ -4,6 +4,7 @@ from random import randint
 import RPi.GPIO as GPIO
 import yaml
 import os
+import vlc
 GPIO.setmode(GPIO.BCM)
 
 # Load secrets from config file
@@ -185,8 +186,14 @@ def get_button():
                     total+=letter
     return total
 
+
+
 while(1):
-    print(get_button())
+    button = get_button()
+    if button=="A":
+        player = vlc.MediaPlayer("file:///home/jon/Downloads/The_Beatles_Yesterday.mp3")
+        player.play()
+        time.sleep(5)
     
     
 print("Preparing to Warmup Fog")
