@@ -88,6 +88,8 @@ button_map = [
     (button_y, "GH78"),
     (button_z, "JK90")
 ]
+letters = "ABCDEFGHJK"
+numbers = "1234567890"
 #############
 # Setup all inputs and outputs
 GPIO.setup(relay_left, GPIO.OUT)
@@ -187,17 +189,28 @@ instance = vlc.Instance()
 player = instance.media_player_new()
 m = instance.media_new("file:///home/jon/Downloads/twoclick.mp3")
 player.set_media(m)
+last_button = ''
+cur_letter = None
+cur_number = None
 while(1):
     button = readTT(button_map)
-    if button:
+    if button and button != last_button:
         #player.set_time(0)
         print(button)
         player.stop()
         player.play()
-        player.audio_set_volume(50)
+        player.audio_set_volume(150)
         time.sleep(0.001)
         player.set_time(520)
-        time.sleep(0.5)
+        last_button = button
+        if button in letters:
+            cur_letter = button
+        elif button in numbers:
+            cur_number = button
+        if cur_letter and cur_number:
+            print(f"I will play {cur_letter}{cur_number}")
+            cur_letter = None
+            cur_number = None
     
     
 print("Preparing to Warmup Fog")
