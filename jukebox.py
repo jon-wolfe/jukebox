@@ -186,31 +186,51 @@ def readTT(button_map):
 
 
 instance = vlc.Instance()
-player = instance.media_player_new()
+clickplayer = instance.media_player_new()
+musicplayer = instance.media_player_new()
 m = instance.media_new("file:///home/jon/Downloads/twoclick.mp3")
-player.set_media(m)
+clickplayer.set_media(m)
 last_button = ''
-cur_letter = None
-cur_number = None
+cl = None
+cn = None
 while(1):
     button = readTT(button_map)
     if button and button != last_button:
         #player.set_time(0)
         print(button)
-        player.stop()
-        player.play()
-        player.audio_set_volume(150)
+        clickplayer.stop()
+        clickplayer.play()
+        clickplayer.audio_set_volume(150)
         time.sleep(0.001)
-        player.set_time(520)
+        clickplayer.set_time(520)
         last_button = button
         if button in letters:
-            cur_letter = button
+            cl = button
         elif button in numbers:
-            cur_number = button
-        if cur_letter and cur_number:
-            print(f"I will play {cur_letter}{cur_number}")
-            cur_letter = None
-            cur_number = None
+            cn = button
+        if cl and cn:
+            print(f"I will play {cl}{cn}")
+            if cl=="A" and cn=="1":
+                do_laser(True)
+            if cl=="A" and cn=="2":
+                do_laser(False)
+            
+            if cl=="A" and cn=="3":
+                GPIO.output(power_fog, True)
+            if cl=="A" and cn=="4":
+                GPIO.output(power_fog, False)
+            if cl=="A" and cn=="5":
+                do_fog(3)
+            if cl=="D" and cn=="0":
+                m = instance.media_new("file:///home/jon/OdeToAKoalaBear.mp3")
+                musicplayer.set_media(m)
+                musicplayer.play()
+                do_fog(3)
+                do_laser(True)
+                
+
+            cl = None
+            cn = None
     
     
 print("Preparing to Warmup Fog")
