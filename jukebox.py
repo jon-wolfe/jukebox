@@ -161,7 +161,7 @@ GPIO.output(power_fog, False)
 time.sleep(2)
 
 
-def readTT(button_group):
+def readTT(button_map):
     tests = [(True,False,False,False),
              (False,True,True,True),
              (False,True,False,False),
@@ -173,20 +173,14 @@ def readTT(button_group):
         GPIO.output(bank_b, bb)
         GPIO.output(pull, p)
         time.sleep(0.001)
-        results.append(GPIO.input(button_group) ^ inv)
-    return results
-
-def get_button():
-    total = ''
-    for (group, letters) in button_map:
-        pressed = readTT(group)
-        if max(pressed):
-            for (val,letter) in zip(pressed,letters):
-                if val:
-                    total+=letter
-
-    return total
-
+        for (button_group, _) in button_map:
+            results.append(GPIO.input(button_group) ^ inv)
+    letter_order = ""
+    for i in range(4):
+        for (_, letters) in button_map:
+            letter_order += letters[i]
+    pressed = [letter for (letter,result) in zip(letter_order,results) if result]
+    return "".join(pressed)
 
 
 instance = vlc.Instance()
@@ -194,7 +188,7 @@ player = instance.media_player_new()
 m = instance.media_new("file:///home/jon/Downloads/twoclick.mp3")
 player.set_media(m)
 while(1):
-    button = get_button()
+    button = readTT(button_map)
     if button:
         #player.set_time(0)
         print(button)
