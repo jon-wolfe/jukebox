@@ -164,10 +164,16 @@ time.sleep(2)
 
 
 def readTT(button_map):
-    tests = [(True,False,False,False),
-             (False,True,True,True),
-             (False,True,False,False),
-             (True,False,True,True),]
+    # A group of four buttons is read off one wire
+    #   by controlling the voltage of BankA and BankB,
+    #   adjusting a weak-pull up/down,
+    #   and reading the resulting level from the sense pin.
+    # The four tests below test for each button of a group.
+    # Each test is (BankA, BankB, Pull, ActiveHigh)
+    tests = [(True,False,False,False),  # "A" (active low)
+             (False,True,True,True),    # "B" (active high)
+             (False,True,False,False),  # "1" (active low)
+             (True,False,True,True),]   # "2" (active high)
     results = []
     for test in tests:
         (ba,bb,p,inv) = test
@@ -186,21 +192,26 @@ def readTT(button_map):
 
 
 instance = vlc.Instance()
+
+# Click Player plays jukebox mechanical button noises
 clickplayer = instance.media_player_new()
-musicplayer = instance.media_player_new()
+clickplayer.audio_set_volume(150)
 m = instance.media_new("file:///home/jon/Downloads/twoclick.mp3")
 clickplayer.set_media(m)
+
+# Music player plays the actual records
+musicplayer = instance.media_player_new()
+musicplayer.audio_set_volume(100)
+
 last_button = ''
 cl = None
 cn = None
 while(1):
     button = readTT(button_map)
     if button and button != last_button:
-        #player.set_time(0)
         print(button)
         clickplayer.stop()
         clickplayer.play()
-        clickplayer.audio_set_volume(150)
         time.sleep(0.001)
         clickplayer.set_time(520)
         last_button = button
