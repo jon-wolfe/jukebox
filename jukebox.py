@@ -3,6 +3,7 @@ from huesdk import Hue
 from random import randint
 import RPi.GPIO as GPIO
 import yaml
+import os
 GPIO.setmode(GPIO.BCM)
 
 # Load secrets from config file
@@ -79,6 +80,13 @@ button_x = 21
 button_y = 13
 button_z = 26
 
+button_map = [
+    (button_v, "AB12"),
+    (button_w, "CD34"),
+    (button_x, "EF56"),
+    (button_y, "GH78"),
+    (button_z, "JK90")
+]
 #############
 # Setup all inputs and outputs
 GPIO.setup(relay_left, GPIO.OUT)
@@ -107,13 +115,6 @@ GPIO.output(relay_laser, False)
 GPIO.output(relay_lights, True)
 GPIO.output(relay_left, False)
 GPIO.output(relay_right, False)
-
-# Warmup the fog machine
-print("Disabling the Fog machine.  (Break here to keep off).")
-GPIO.output(power_fog, False)
-time.sleep(2)
-print("Preparing to Warmup Fog")
-GPIO.output(power_fog, True)
 
 # True if a quarter is currently flying through the coin-slot (brief!)
 def see_quarter():
@@ -148,8 +149,48 @@ def do_fog(duration=2, forever=False):
     GPIO.output(relay_fog, False)
     time.sleep(3)
     
+def playpause():
+    os.system("qdbus org.mpris.MediaPlayer2.vlc /org/mpris/MediaPlayer2 org.mpris.MediaPlayer2.Player.PlayPause")
+
+sputter_lights()
+
+# Warmup the fog machine
+print("Disabling the Fog machine.  (Break here to keep off).")
+GPIO.output(power_fog, False)
+time.sleep(2)
 
 
+def readTT(button_group):
+    tests = [(True,False,False,False),
+             (False,True,True,True),
+             (False,True,False,False),
+             (True,False,True,True),]
+    results = []
+    for test in tests:
+        (ba,bb,p,inv) = test
+        GPIO.output(bank_a, ba)
+        GPIO.output(bank_b, bb)
+        GPIO.output(pull, p)
+        time.sleep(0.01)
+        results.append(GPIO.input(button_group) ^ inv)
+    return results
+
+def get_button():
+    for (group, letters) in button_map:
+        pressed = readTT(group)
+        if max(pressed):
+            for (val,letter) in zip(pressed,letters):
+                if val:
+                    return letter
+    return None
+
+while(1):
+    print(get_button())
+    
+    
+print("Preparing to Warmup Fog")
+GPIO.output(power_fog, True)
+do_lights(False)
     
     
 # Do a mini-show (demo) when a quarter is inserted
@@ -162,8 +203,9 @@ while True:
     do_fog(3)
     randomize_each_hue(lights)
     do_laser()
+    playpause()
     randomize_random_hue(lights)
-    time.sleep(6)
+    time.sleep(60)
     do_laser(False)
     do_lights(False)
     write_hue(lights, orig_hls)
