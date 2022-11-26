@@ -172,7 +172,7 @@ def readTT(button_group):
         GPIO.output(bank_a, ba)
         GPIO.output(bank_b, bb)
         GPIO.output(pull, p)
-        time.sleep(0.01)
+        time.sleep(0.001)
         results.append(GPIO.input(button_group) ^ inv)
     return results
 
@@ -184,16 +184,26 @@ def get_button():
             for (val,letter) in zip(pressed,letters):
                 if val:
                     total+=letter
+
     return total
 
 
 
+instance = vlc.Instance()
+player = instance.media_player_new()
+m = instance.media_new("file:///home/jon/Downloads/twoclick.mp3")
+player.set_media(m)
 while(1):
     button = get_button()
-    if button=="A":
-        player = vlc.MediaPlayer("file:///home/jon/Downloads/The_Beatles_Yesterday.mp3")
+    if button:
+        #player.set_time(0)
+        print(button)
+        player.stop()
         player.play()
-        time.sleep(5)
+        player.audio_set_volume(50)
+        time.sleep(0.001)
+        player.set_time(520)
+        time.sleep(0.5)
     
     
 print("Preparing to Warmup Fog")
