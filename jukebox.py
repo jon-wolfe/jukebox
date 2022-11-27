@@ -233,11 +233,23 @@ while(1):
             if cl=="A" and cn=="5":
                 do_fog(3)
             if cl=="D" and cn=="0":
-                m = instance.media_new("file:///home/jon/OdeToAKoalaBear.mp3")
+                m = instance.media_new("file:///home/jon/Music/PaulMcCartney/OdeToAKoalaBear.mp3")
                 musicplayer.set_media(m)
                 musicplayer.play()
                 do_fog(3)
                 do_laser(True)
+            if cl=="K" and cn=="2":
+                m = instance.media_new("file:///home/jon/Music/LilNasX/OldTownRoad.mp3")
+                musicplayer.set_media(m)
+                musicplayer.play()
+                do_fog(3)
+                do_laser(True)
+            if cl=="B" and cn=="1":
+                m = instance.media_new("file:///home/jon/Music/Britney/06 If U Seek Amy.mp3")
+                musicplayer.set_media(m)
+                musicplayer.play()
+            if cl=="B" and cn=="0":
+                musicplayer.stop()
                 
 
             cl = None
