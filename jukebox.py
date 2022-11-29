@@ -223,33 +223,39 @@ while(1):
             print(f"I will play {cl}{cn}")
             if cl=="A" and cn=="1":
                 do_laser(True)
-            if cl=="A" and cn=="2":
-                do_laser(False)
-            
-            if cl=="A" and cn=="3":
+            elif cl=="A" and cn=="2":
+                do_laser(False) 
+            elif cl=="A" and cn=="3":
                 GPIO.output(power_fog, True)
-            if cl=="A" and cn=="4":
+            elif cl=="A" and cn=="4":
                 GPIO.output(power_fog, False)
-            if cl=="A" and cn=="5":
+            elif cl=="A" and cn=="5":
                 do_fog(3)
-            if cl=="D" and cn=="0":
+            elif cl=="A" and cn=="0":
+                musicplayer.stop()
+            elif cl=="D" and cn=="0":
                 m = instance.media_new("file:///home/jon/Music/PaulMcCartney/OdeToAKoalaBear.mp3")
                 musicplayer.set_media(m)
                 musicplayer.play()
                 do_fog(3)
                 do_laser(True)
-            if cl=="K" and cn=="2":
+            elif cl=="K" and cn=="2":
                 m = instance.media_new("file:///home/jon/Music/LilNasX/OldTownRoad.mp3")
                 musicplayer.set_media(m)
                 musicplayer.play()
                 do_fog(3)
                 do_laser(True)
-            if cl=="B" and cn=="1":
-                m = instance.media_new("file:///home/jon/Music/Britney/06 If U Seek Amy.mp3")
-                musicplayer.set_media(m)
-                musicplayer.play()
-            if cl=="B" and cn=="0":
-                musicplayer.stop()
+            elif cl in config["music"]:
+                root = config["music_dir"]
+                songcol = config["music"][cl]
+                idx = int(cn)
+                if len(songcol)>idx:
+                    song = songcol[idx]
+                    m = instance.media_new(f"file://{root}/{song}")
+                    musicplayer.set_media(m)
+                    musicplayer.play()
+                    
+            
                 
 
             cl = None
