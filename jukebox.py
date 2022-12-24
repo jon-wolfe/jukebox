@@ -191,18 +191,21 @@ def readTT(button_map):
     return "".join(pressed)
 
 
-instance = vlc.Instance()
+instance = vlc.Instance("--loop")
 
 # Click Player plays jukebox mechanical button noises
 clickplayer = instance.media_player_new()
-clickplayer.audio_set_volume(150)
+clickplayer.audio_set_volume(50)
 m = instance.media_new("file:///home/jon/Downloads/twoclick.mp3")
 clickplayer.set_media(m)
 
 # Music player plays the actual records
-musicplayer = instance.media_player_new()
-musicplayer.audio_set_volume(100)
+musicplayer = instance.media_list_player_new()
+#musicplayer.audio_set_volume(100)
+musicplayer.get_media_player().audio_set_volume(20)
 
+
+root = config["music_dir"]
 last_button = ''
 cl = None
 cn = None
@@ -233,15 +236,26 @@ while(1):
                 do_fog(3)
             elif cl=="A" and cn=="0":
                 musicplayer.stop()
+            elif cl=="A" and cn=="9":
+                musicplayer.next()
+
             elif cl=="D" and cn=="0":
-                m = instance.media_new("file:///home/jon/Music/PaulMcCartney/OdeToAKoalaBear.mp3")
-                musicplayer.set_media(m)
+                song = "PaulMcCartney/OdeToAKoalaBear.mp3"
+                mediaList = instance.media_list_new()
+                m = instance.media_new(f"file://{root}/{song}")
+                mediaList.add_media(m)
+                musicplayer.stop()
+                musicplayer.set_media_list(mediaList)
                 musicplayer.play()
                 do_fog(3)
                 do_laser(True)
             elif cl=="K" and cn=="2":
-                m = instance.media_new("file:///home/jon/Music/LilNasX/OldTownRoad.mp3")
-                musicplayer.set_media(m)
+                song="LilNasX/OldTownRoad.mp3"
+                mediaList = instance.media_list_new()
+                m = instance.media_new(f"file://{root}/{song}")
+                mediaList.add_media(m)
+                musicplayer.stop()
+                musicplayer.set_media_list(mediaList)
                 musicplayer.play()
                 do_fog(3)
                 do_laser(True)
@@ -250,12 +264,21 @@ while(1):
                 songcol = config["music"][cl]
                 idx = int(cn)
                 if len(songcol)>idx:
-                    song = songcol[idx]
-                    m = instance.media_new(f"file://{root}/{song}")
-                    musicplayer.set_media(m)
+                    songs = songcol[idx]
+                    mediaList = instance.media_list_new()
+                    if isinstance(songs, list):
+                        for song in songs:
+                            print(f"Adding song {song}")
+                            m = instance.media_new(f"file://{root}/{song}")
+                            mediaList.add_media(m)
+                    else:
+                        m = instance.media_new(f"file://{root}/{songs}")
+                        mediaList.add_media(m)
+                    musicplayer.stop()
+                    musicplayer.set_media_list(mediaList)
+                    musicplayer.get_media_player().audio_set_volume(1)
                     musicplayer.play()
-                    
-            
+                    musicplayer.get_media_player().audio_set_volume(1)
                 
 
             cl = None
