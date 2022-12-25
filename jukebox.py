@@ -158,10 +158,17 @@ def playpause():
 sputter_lights()
 
 # Warmup the fog machine
-print("Disabling the Fog machine.  (Break here to keep off).")
-GPIO.output(power_fog, False)
-time.sleep(2)
+#print("Disabling the Fog machine.  (Break here to keep off).")
+#GPIO.output(power_fog, False)
+#time.sleep(2)
 
+
+GPIO.output(power_fog, True)
+time.sleep(1)
+do_fog(10)
+do_laser()
+GPIO.output(relay_left, False)
+GPIO.output(relay_right, False)
 
 def readTT(button_map):
     # A group of four buttons is read off one wire
@@ -223,23 +230,24 @@ while(1):
         elif button in numbers:
             cn = button
         if cl and cn:
-            print(f"I will play {cl}{cn}")
-            if cl=="A" and cn=="1":
+            sel = f"{cl}{cn}"
+            print(f"I will play {sel}")
+            if sel=="A0":
                 do_laser(True)
-            elif cl=="A" and cn=="2":
+            elif sel=="B0":
                 do_laser(False) 
-            elif cl=="A" and cn=="3":
+            elif sel=="C0":
                 GPIO.output(power_fog, True)
-            elif cl=="A" and cn=="4":
+            elif sel=="D0":
                 GPIO.output(power_fog, False)
-            elif cl=="A" and cn=="5":
+            elif sel=="E0":
                 do_fog(3)
-            elif cl=="A" and cn=="0":
-                musicplayer.stop()
-            elif cl=="A" and cn=="9":
+            elif sel=="J0":
                 musicplayer.next()
+            elif sel=="K0":
+                musicplayer.stop()
 
-            elif cl=="D" and cn=="0":
+            elif sel=="H0":
                 song = "PaulMcCartney/OdeToAKoalaBear.mp3"
                 mediaList = instance.media_list_new()
                 m = instance.media_new(f"file://{root}/{song}")
@@ -249,7 +257,7 @@ while(1):
                 musicplayer.play()
                 do_fog(3)
                 do_laser(True)
-            elif cl=="K" and cn=="2":
+            elif sel=="F0":
                 song="LilNasX/OldTownRoad.mp3"
                 mediaList = instance.media_list_new()
                 m = instance.media_new(f"file://{root}/{song}")
@@ -259,26 +267,23 @@ while(1):
                 musicplayer.play()
                 do_fog(3)
                 do_laser(True)
-            elif cl in config["music"]:
+            elif sel in config["music"]:
                 root = config["music_dir"]
-                songcol = config["music"][cl]
-                idx = int(cn)
-                if len(songcol)>idx:
-                    songs = songcol[idx]
-                    mediaList = instance.media_list_new()
-                    if isinstance(songs, list):
-                        for song in songs:
-                            print(f"Adding song {song}")
-                            m = instance.media_new(f"file://{root}/{song}")
-                            mediaList.add_media(m)
-                    else:
-                        m = instance.media_new(f"file://{root}/{songs}")
+                songs = config["music"][sel]
+                mediaList = instance.media_list_new()
+                if isinstance(songs, list):
+                    for song in songs:
+                        print(f"Adding song {song}")
+                        m = instance.media_new(f"file://{root}/{song}")
                         mediaList.add_media(m)
-                    musicplayer.stop()
-                    musicplayer.set_media_list(mediaList)
-                    musicplayer.get_media_player().audio_set_volume(1)
-                    musicplayer.play()
-                    musicplayer.get_media_player().audio_set_volume(1)
+                else:
+                    m = instance.media_new(f"file://{root}/{songs}")
+                    mediaList.add_media(m)
+                musicplayer.stop()
+                musicplayer.set_media_list(mediaList)
+                musicplayer.get_media_player().audio_set_volume(1)
+                musicplayer.play()
+                musicplayer.get_media_player().audio_set_volume(1)
                 
 
             cl = None
