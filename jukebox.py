@@ -20,6 +20,7 @@ state = {
     'button_capture': '',  # The last-observed button (no double-count!)
     'button_forget': 0,     # Allow double-count after timeout
     'button_newpress': False,  # Doorbell when a new button is pressed (make a noise, please?)
+    'song_list': [],
     }
 
 # Load secrets from config file
@@ -134,14 +135,25 @@ GPIO.output(relay_lights, True)
 GPIO.output(relay_left, False)
 GPIO.output(relay_right, False)
 
-#count = 0
-#state = GPIO.input(switch_quarter)
-while False:
-    print(f"{count}: State is {state}")
-    count+=1
-    while GPIO.input(switch_quarter)==state:
-        continue
-    state = GPIO.input(switch_quarter)
+
+
+###############################################
+# Setup VLC media player (for actual music)
+###############################################
+instance = vlc.Instance("--loop")
+
+# Click Player plays jukebox mechanical button noises
+clickplayer = instance.media_player_new()
+clickplayer.audio_set_volume(50)
+m = instance.media_new("file:///home/jon/Downloads/twoclick.mp3")
+clickplayer.set_media(m)
+
+# Music player plays the actual records
+musicplayer = instance.media_list_player_new()
+#musicplayer.audio_set_volume(100)
+musicplayer.get_media_player().audio_set_volume(20)
+
+root = config["music_dir"]
 
 
 # True if a quarter is currently flying through the coin-slot (brief!)
@@ -216,6 +228,10 @@ def readTT(button_map):
 async def do_button():
     period = 0.05
     while True:
+        await asyncio.sleep(period)
+        if not state["light_on"]:
+            # No button-read in OFF-state
+            continue
         current = readTT(button_map)
         if current and current != state["button_capture"]:
             state["button_newpress"] = True
@@ -228,7 +244,6 @@ async def do_button():
             state["button_forget"]-=period
         else:
             state["button_capture"] = ''
-        await asyncio.sleep(period)
 
 
 # Run the fog for a short time (or forever? >@_@< )
@@ -265,6 +280,26 @@ async def do_quarter():
             print(f"See Quarter! {state['quarter_count']}")
         await asyncio.sleep(0.1)
 
+def play_song_for(pair):
+    if pair in config["music"]:
+        root = config["music_dir"]
+        songs = config["music"][pair]
+        mediaList = instance.media_list_new()
+        if isinstance(songs, list):
+            for song in songs:
+                print(f"Adding song {song}")
+                m = instance.media_new(f"file://{root}/{song}")
+                mediaList.add_media(m)
+        else:
+            m = instance.media_new(f"file://{root}/{songs}")
+            mediaList.add_media(m)
+        musicplayer.stop()
+        musicplayer.set_media_list(mediaList)
+        musicplayer.get_media_player().audio_set_volume(1)
+        musicplayer.play()
+        musicplayer.get_media_player().audio_set_volume(1)
+                
+
 # Return True if any special was found, else return False
 def execute_buttons(buttons):
     print(f"Buttons are: {buttons}")
@@ -275,11 +310,17 @@ def execute_buttons(buttons):
         if end in specials:
             specials[end][0](**specials[end][1])
             return True
+    if len(buttons)>=2:
+        end = buttons[-2:]
+        if end[0] in "ABCDEFGHJK" and end[1] in "0123456789":
+            play_song_for(end)
+            return True
+        
     return False
 
 async def do_statemachine():
     while True:
-        print(readTT(button_map))
+        await asyncio.sleep(1)
         if state["quarter_count"]>0:
             print("Consume Quarter")
             state["quarter_count"]-=1
@@ -291,7 +332,6 @@ async def do_statemachine():
         buttons = "".join(state["button_list"])
         if execute_buttons(buttons):
             state["button_list"] = ["X"]
-        await asyncio.sleep(1)
     
 def playpause():
     os.system("qdbus org.mpris.MediaPlayer2.vlc /org/mpris/MediaPlayer2 org.mpris.MediaPlayer2.Player.PlayPause")
