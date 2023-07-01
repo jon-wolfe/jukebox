@@ -285,14 +285,32 @@ async def do_songplay():
     while True:
         await asyncio.sleep(1)
         vlc_state = musicplayer.get_state()
-        if vlc_state != vlc.State.NothingSpecial:
-            print(f"VLC: {vlc_state}")
+        if vlc_state == vlc.State.Playing:
             continue
+        if vlc_state not in [
+            vlc.State.NothingSpecial,
+            vlc.State.Ended,
+        ]:
+            print(f"VLC UNKNOWN STATE: {vlc_state}")
 
         # Play the next song in the song_list
         if len(state["song_list"]):
             next_song = state["song_list"][0]
             state["song_list"] = state["song_list"][1:]
+            mediaList = instance.media_list_new()
+            m = instance.media_new(next_song)
+            mediaList.add_media(m)
+            musicplayer.stop()
+            musicplayer.set_media_list(mediaList)
+            musicplayer.get_media_player().audio_set_volume(1)
+            musicplayer.play()
+            musicplayer.get_media_player().audio_set_volume(1)
+            continue
+
+        # If no explicit pick, play recent bonus-songs
+        if len(state["song_bucket"]):
+            next_song = state["song_bucket"][-1]
+            state["song_bucket"] = state["song_bucket"][0:-1]
             mediaList = instance.media_list_new()
             m = instance.media_new(next_song)
             mediaList.add_media(m)
