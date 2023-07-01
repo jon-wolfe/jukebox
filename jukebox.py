@@ -20,7 +20,8 @@ state = {
     'button_capture': '',  # The last-observed button (no double-count!)
     'button_forget': 0,     # Allow double-count after timeout
     'button_newpress': False,  # Doorbell when a new button is pressed (make a noise, please?)
-    'song_list': [],
+    'song_list': [],   # Songs selected by human
+    'song_bucket': [],  # Backup material for songs selected by human
     }
 
 # Load secrets from config file
@@ -280,25 +281,42 @@ async def do_quarter():
             print(f"See Quarter! {state['quarter_count']}")
         await asyncio.sleep(0.1)
 
-def play_song_for(pair):
+async def do_songplay():
+    while True:
+        await asyncio.sleep(1)
+        vlc_state = musicplayer.get_state()
+        if vlc_state != vlc.State.NothingSpecial:
+            print(f"VLC: {vlc_state}")
+            continue
+
+        # Play the next song in the song_list
+        if len(state["song_list"]):
+            next_song = state["song_list"][0]
+            state["song_list"] = state["song_list"][1:]
+            mediaList = instance.media_list_new()
+            m = instance.media_new(next_song)
+            mediaList.add_media(m)
+            musicplayer.stop()
+            musicplayer.set_media_list(mediaList)
+            musicplayer.get_media_player().audio_set_volume(1)
+            musicplayer.play()
+            musicplayer.get_media_player().audio_set_volume(1)
+
+
+def add_song(pair):
     if pair in config["music"]:
         root = config["music_dir"]
         songs = config["music"][pair]
-        mediaList = instance.media_list_new()
         if isinstance(songs, list):
-            for song in songs:
-                print(f"Adding song {song}")
-                m = instance.media_new(f"file://{root}/{song}")
-                mediaList.add_media(m)
+            if len(songs):
+                state["song_list"].append(f"file://{root}/{songs[0]}")
+            if len(songs)>1:
+                for song in songs[1:]:
+                    state["song_bucket"].append(f"file://{root}/{song}")
         else:
-            m = instance.media_new(f"file://{root}/{songs}")
-            mediaList.add_media(m)
-        musicplayer.stop()
-        musicplayer.set_media_list(mediaList)
-        musicplayer.get_media_player().audio_set_volume(1)
-        musicplayer.play()
-        musicplayer.get_media_player().audio_set_volume(1)
-                
+            state["song_list"].append(f"file://{root}/{songs}")
+    else:
+        print(f"DEBUG: No song for selection {pair}")
 
 # Return True if any special was found, else return False
 def execute_buttons(buttons):
@@ -313,7 +331,7 @@ def execute_buttons(buttons):
     if len(buttons)>=2:
         end = buttons[-2:]
         if end[0] in "ABCDEFGHJK" and end[1] in "0123456789":
-            play_song_for(end)
+            add_song(end)
             return True
         
     return False
@@ -353,6 +371,7 @@ async def main():
         do_quarter(),
         do_statemachine(),
         do_button(),
+        do_songplay(),
     )
 
 asyncio.run(main())
