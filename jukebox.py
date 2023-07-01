@@ -15,8 +15,11 @@ state = {
     'quarter_count': 0,
     'fog_remain_time': 0,
     'light_remain_time': 0,
-    'button_list': [],
-    'button_capture': '',
+    'light_on': False,
+    'button_list': ['X'],   # Each button pushed to end of list when pressed
+    'button_capture': '',  # The last-observed button (no double-count!)
+    'button_forget': 0,     # Allow double-count after timeout
+    'button_newpress': False,  # Doorbell when a new button is pressed (make a noise, please?)
     }
 
 # Load secrets from config file
@@ -169,67 +172,6 @@ def sputter_lights():
     time.sleep(0.2)
     do_lights()
 
-# Run the fog for a short time (or forever? >@_@< )
-async def do_fog():
-    while True:
-        if state["fog_remain_time"]:
-            print(f"Fog countdown {state['fog_remain_time']}")
-            state["fog_remain_time"]-=1
-            GPIO.output(relay_fog, True)
-            await asyncio.sleep(1)
-        else:
-            GPIO.output(relay_fog, False)
-            await asyncio.sleep(1)
-
-async def do_quarter():
-    while True:
-        qtr = await see_quarter()
-        if qtr:
-            print(f"{qtr}")
-            state["quarter_count"]+=1
-            print(f"See Quarter! {state['quarter_count']}")
-        await asyncio.sleep(0.1)
-
-async def do_statemachine():
-    while True:
-        if state["quarter_count"]>0:
-            print("Consume Quarter")
-            state["quarter_count"]-=1
-            state["fog_remain_time"] =  state["fog_remain_time"] + 3
-        await asyncio.sleep(1)
-    
-def playpause():
-    os.system("qdbus org.mpris.MediaPlayer2.vlc /org/mpris/MediaPlayer2 org.mpris.MediaPlayer2.Player.PlayPause")
-
-sputter_lights()
-
-# Warmup the fog machine
-#print("Disabling the Fog machine.  (Break here to keep off).")
-#GPIO.output(power_fog, False)
-#time.sleep(2)
-
-GPIO.output(power_fog, True)
-do_laser()
-
-async def main():
-    await asyncio.gather(
-        do_fog(),
-        do_quarter(),
-        do_statemachine(),
-    )
-
-asyncio.run(main())
-
-
-exit(1)
-
-GPIO.output(power_fog, True)
-time.sleep(1)
-do_fog(10)
-do_laser()
-GPIO.output(relay_left, False)
-GPIO.output(relay_right, False)
-
 def readTT(button_map):
     # A group of four buttons is read off one wire
     #   by controlling the voltage of BankA and BankB,
@@ -257,6 +199,103 @@ def readTT(button_map):
     pressed = [letter for (letter,result) in zip(letter_order,results) if result]
     return "".join(pressed)
 
+
+async def do_button():
+    period = 0.05
+    while True:
+        current = readTT(button_map)
+        if current and current != state["button_capture"]:
+            state["button_newpress"] = True
+        if current:
+            state["button_forget"] = 3
+            state["button_capture"] = current
+        if current and state["button_list"][-1] != current:
+            state["button_list"].append(current)
+        if state["button_forget"] > 0:
+            state["button_forget"]-=period
+        else:
+            state["button_capture"] = ''
+        await asyncio.sleep(period)
+
+
+# Run the fog for a short time (or forever? >@_@< )
+async def do_fog():
+    while True:
+        if state["fog_remain_time"]:
+            print(f"Fog countdown {state['fog_remain_time']}")
+            state["fog_remain_time"]-=1
+            GPIO.output(relay_fog, True)
+            await asyncio.sleep(1)
+        else:
+            GPIO.output(relay_fog, False)
+            await asyncio.sleep(1)
+
+async def do_light():
+    while True:
+        if state["light_remain_time"]:
+#            print(f"Light countdown {state['light_remain_time']}")
+            state["light_remain_time"]-=1
+            if not state["light_on"]:
+                sputter_lights()
+                state["light_on"] = True
+            await asyncio.sleep(1)
+        else:
+            do_lights(False)
+            await asyncio.sleep(1)
+
+async def do_quarter():
+    while True:
+        qtr = await see_quarter()
+        if qtr:
+            print(f"{qtr}")
+            state["quarter_count"]+=1
+            print(f"See Quarter! {state['quarter_count']}")
+        await asyncio.sleep(0.1)
+
+async def do_statemachine():
+    while True:
+        print(readTT(button_map))
+        if state["quarter_count"]>0:
+            print("Consume Quarter")
+            state["quarter_count"]-=1
+            state["fog_remain_time"] =  state["fog_remain_time"] + 3
+            state["light_remain_time"] = 60*60;
+        print(f"Buttons: {state['button_list']}")
+        await asyncio.sleep(1)
+    
+def playpause():
+    os.system("qdbus org.mpris.MediaPlayer2.vlc /org/mpris/MediaPlayer2 org.mpris.MediaPlayer2.Player.PlayPause")
+
+sputter_lights()
+
+# Warmup the fog machine
+#print("Disabling the Fog machine.  (Break here to keep off).")
+#GPIO.output(power_fog, False)
+#time.sleep(2)
+
+GPIO.output(power_fog, True)
+do_laser()
+
+async def main():
+    await asyncio.gather(
+        do_light(),
+        do_fog(),
+        do_quarter(),
+        do_statemachine(),
+        do_button(),
+    )
+
+asyncio.run(main())
+
+
+exit(1)
+
+GPIO.output(power_fog, True)
+time.sleep(1)
+do_fog(10)
+do_laser()
+GPIO.output(relay_left, False)
+GPIO.output(relay_right, False)
 
 instance = vlc.Instance("--loop")
 
