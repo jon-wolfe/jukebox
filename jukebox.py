@@ -1,3 +1,6 @@
+#!/usr/bin/python
+
+import asyncio
 import time
 from huesdk import Hue
 from random import randint
@@ -6,6 +9,17 @@ import yaml
 import os
 import vlc
 GPIO.setmode(GPIO.BCM)
+
+
+state = {
+    'light_on': False, 
+    'button_pressed': False, 
+    'coin_inserted': False, 
+    'music_playing': False,
+    'fog': 0, 
+    'fog_request': 0, 
+    'quarters': 0
+    }
 
 # Load secrets from config file
 with open("config.yaml","r") as configfile:
@@ -119,9 +133,23 @@ GPIO.output(relay_lights, True)
 GPIO.output(relay_left, False)
 GPIO.output(relay_right, False)
 
+#count = 0
+#state = GPIO.input(switch_quarter)
+while False:
+    print(f"{count}: State is {state}")
+    count+=1
+    while GPIO.input(switch_quarter)==state:
+        continue
+    state = GPIO.input(switch_quarter)
+
+
 # True if a quarter is currently flying through the coin-slot (brief!)
-def see_quarter():
-    return GPIO.input(switch_quarter)
+async def see_quarter():
+    if GPIO.input(switch_quarter):
+        while GPIO.input(switch_quarter):
+            await asyncio.sleep(0.1)
+        return True
+    return False
 
 # Turn on (or off) the laser
 def do_laser(on=True):
@@ -144,13 +172,39 @@ def sputter_lights():
     do_lights()
 
 # Run the fog for a short time (or forever? >@_@< )
-def do_fog(duration=2, forever=False):
-    GPIO.output(relay_fog, True)
-    time.sleep(duration)
-    if forever:
-        return
-    GPIO.output(relay_fog, False)
-    time.sleep(3)
+async def do_fog():
+    while True:
+        request = state["fog_request"]
+        if request:
+            print(f"Request for {request} fog")
+            state["fog_request"] = 0
+        if request > state["fog"]:
+            state["fog"] = request
+        if state["fog"]:
+            print(f"Fog countdown {state['fog']}")
+            state["fog"]-=1
+            GPIO.output(relay_fog, True)
+            await asyncio.sleep(1)
+        else:
+            GPIO.output(relay_fog, False)
+            await asyncio.sleep(1)
+
+async def do_quarter():
+    while True:
+        qtr = await see_quarter()
+        if qtr:
+            print(f"{qtr}")
+            state["quarters"]+=1
+            print(f"See Quarter! {state['quarters']}")
+        await asyncio.sleep(0.1)
+
+async def do_statemachine():
+    while True:
+        if state["quarters"]>0:
+            print("Consume Quarter")
+            state["quarters"]-=1
+            state["fog_request"] =  state["fog"] + 3
+        await asyncio.sleep(1)
     
 def playpause():
     os.system("qdbus org.mpris.MediaPlayer2.vlc /org/mpris/MediaPlayer2 org.mpris.MediaPlayer2.Player.PlayPause")
@@ -162,6 +216,20 @@ sputter_lights()
 #GPIO.output(power_fog, False)
 #time.sleep(2)
 
+GPIO.output(power_fog, True)
+do_laser()
+
+async def main():
+    await asyncio.gather(
+        do_fog(),
+        do_quarter(),
+        do_statemachine(),
+    )
+
+asyncio.run(main())
+
+
+exit(1)
 
 GPIO.output(power_fog, True)
 time.sleep(1)
