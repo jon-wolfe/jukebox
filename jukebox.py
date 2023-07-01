@@ -172,6 +172,19 @@ def sputter_lights():
     time.sleep(0.2)
     do_lights()
 
+def make_fog(time=3):
+    if time==0:
+        state["fog_remain_time"]=0
+    else:
+        state["fog_remain_time"]+=time
+
+specials = {
+    "JK1": [do_laser, {"on": True}],
+    "JK2": [do_laser, {"on": False}],
+    "JK3": [make_fog, {"time": 10}],
+    "JK4": [make_fog, {"time": 0}],
+}
+
 def readTT(button_map):
     # A group of four buttons is read off one wire
     #   by controlling the voltage of BankA and BankB,
@@ -252,6 +265,18 @@ async def do_quarter():
             print(f"See Quarter! {state['quarter_count']}")
         await asyncio.sleep(0.1)
 
+# Return True if any special was found, else return False
+def execute_buttons(buttons):
+    print(f"Buttons are: {buttons}")
+    for length in [3]:
+        if len(buttons)<length:
+            continue
+        end = buttons[-length:]
+        if end in specials:
+            specials[end][0](**specials[end][1])
+            return True
+    return False
+
 async def do_statemachine():
     while True:
         print(readTT(button_map))
@@ -260,7 +285,12 @@ async def do_statemachine():
             state["quarter_count"]-=1
             state["fog_remain_time"] =  state["fog_remain_time"] + 3
             state["light_remain_time"] = 60*60;
-        print(f"Buttons: {state['button_list']}")
+        if not state["light_on"]:
+            # Put in a quarter if you want music, etc!
+            continue
+        buttons = "".join(state["button_list"])
+        if execute_buttons(buttons):
+            state["button_list"] = ["X"]
         await asyncio.sleep(1)
     
 def playpause():
