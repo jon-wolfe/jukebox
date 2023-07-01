@@ -12,13 +12,11 @@ GPIO.setmode(GPIO.BCM)
 
 
 state = {
-    'light_on': False, 
-    'button_pressed': False, 
-    'coin_inserted': False, 
-    'music_playing': False,
-    'fog': 0, 
-    'fog_request': 0, 
-    'quarters': 0
+    'quarter_count': 0,
+    'fog_remain_time': 0,
+    'light_remain_time': 0,
+    'button_list': [],
+    'button_capture': '',
     }
 
 # Load secrets from config file
@@ -174,15 +172,9 @@ def sputter_lights():
 # Run the fog for a short time (or forever? >@_@< )
 async def do_fog():
     while True:
-        request = state["fog_request"]
-        if request:
-            print(f"Request for {request} fog")
-            state["fog_request"] = 0
-        if request > state["fog"]:
-            state["fog"] = request
-        if state["fog"]:
-            print(f"Fog countdown {state['fog']}")
-            state["fog"]-=1
+        if state["fog_remain_time"]:
+            print(f"Fog countdown {state['fog_remain_time']}")
+            state["fog_remain_time"]-=1
             GPIO.output(relay_fog, True)
             await asyncio.sleep(1)
         else:
@@ -194,16 +186,16 @@ async def do_quarter():
         qtr = await see_quarter()
         if qtr:
             print(f"{qtr}")
-            state["quarters"]+=1
-            print(f"See Quarter! {state['quarters']}")
+            state["quarter_count"]+=1
+            print(f"See Quarter! {state['quarter_count']}")
         await asyncio.sleep(0.1)
 
 async def do_statemachine():
     while True:
-        if state["quarters"]>0:
+        if state["quarter_count"]>0:
             print("Consume Quarter")
-            state["quarters"]-=1
-            state["fog_request"] =  state["fog"] + 3
+            state["quarter_count"]-=1
+            state["fog_remain_time"] =  state["fog_remain_time"] + 3
         await asyncio.sleep(1)
     
 def playpause():
