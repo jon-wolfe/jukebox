@@ -327,18 +327,25 @@ def add_song(pair):
         songs = config["music"][pair]
         if isinstance(songs, list):
             if len(songs):
-                state["song_list"].append(f"file://{root}/{songs[0]}")
+                song_name = f"file://{root}/{songs[0]}"
+                if song_name in state["song_list"]:
+                    print("Skipping would-be-dupe")
+                    return
+                state["song_list"].append(song_name)
             if len(songs)>1:
                 for song in songs[1:]:
                     state["song_bucket"].append(f"file://{root}/{song}")
         else:
-            state["song_list"].append(f"file://{root}/{songs}")
+            song_name = f"file://{root}/{songs}"
+            if song_name in state["song_list"]:
+                print("Skipping would-be-dupe")
+            state["song_list"].append(song_name)
     else:
         print(f"DEBUG: No song for selection {pair}")
 
 # Return True if any special was found, else return False
 def execute_buttons(buttons):
-    print(f"Buttons are: {buttons}")
+#    print(f"Buttons are: {buttons}")
     for length in [3]:
         if len(buttons)<length:
             continue
