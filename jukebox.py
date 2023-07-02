@@ -191,12 +191,43 @@ def make_fog(time=3):
     else:
         state["fog_remain_time"]+=time
 
+def pause():
+    vlc_state = musicplayer.get_state()
+    if vlc_state == vlc.State.Paused:
+        musicplayer.play()
+    else:
+        musicplayer.pause()
+
+def stop():
+    musicplayer.stop()
+
+def off():
+    state["light_remain_time"] = 0
+    state["fog_remain_time"] = 0
+    state["quaerter_count"] = 0
+    state["light_on"] = False
+    do_laser(on=False)
+    do_lights(on=False)
+    make_fog(0)
+    stop()
+
+
+
 specials = {
     "JK1": [do_laser, {"on": True}],
     "JK2": [do_laser, {"on": False}],
     "JK3": [make_fog, {"time": 10}],
     "JK4": [make_fog, {"time": 0}],
+    "JK9": [pause, {}],
+    "JK0": [stop, {}],
+    "HJK0": [off, {}],
 }
+
+def clicky_noise():
+    clickplayer.stop()
+    clickplayer.play()
+    time.sleep(0.001)
+    clickplayer.set_time(520)
 
 def readTT(button_map):
     # A group of four buttons is read off one wire
@@ -235,6 +266,7 @@ async def do_button():
             continue
         current = readTT(button_map)
         if current and current != state["button_capture"]:
+            clicky_noise()
             state["button_newpress"] = True
         if current:
             state["button_forget"] = 3
@@ -269,7 +301,9 @@ async def do_light():
                 state["light_on"] = True
             await asyncio.sleep(1)
         else:
-            do_lights(False)
+            do_lights(on=False)
+            do_laser(on=False)
+            state["light_on"] = False
             await asyncio.sleep(1)
 
 async def do_quarter():
@@ -346,7 +380,7 @@ def add_song(pair):
 # Return True if any special was found, else return False
 def execute_buttons(buttons):
 #    print(f"Buttons are: {buttons}")
-    for length in [3]:
+    for length in [4,3]:
         if len(buttons)<length:
             continue
         end = buttons[-length:]
@@ -387,7 +421,6 @@ sputter_lights()
 #time.sleep(2)
 
 GPIO.output(power_fog, True)
-do_laser()
 
 async def main():
     await asyncio.gather(
