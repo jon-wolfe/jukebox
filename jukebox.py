@@ -17,6 +17,7 @@ state = {
     'quarter_count': 0,
     'fog_remain_time': 0,
     'light_remain_time': 0,
+    'laser_remain_time': 0,
     'light_on': False,
     'laser_on': False,
     'button_list': ['X'],   # Each button pushed to end of list when pressed
@@ -25,7 +26,7 @@ state = {
     'button_newpress': False,  # Doorbell when a new button is pressed (make a noise, please?)
     'song_list': [],   # Songs selected by human
     'song_bucket': [],  # Backup material for songs selected by human
-    }
+}
 
 # Load secrets from config file
 with open("config.yaml","r") as configfile:
@@ -197,6 +198,9 @@ def set_time_fog(time=3):
     else:
         state["fog_remain_time"]+=time
 
+def is_music_playing():
+    return musicplayer.get_state() == vlc.State.Playing
+
 def music_pause():
     vlc_state = musicplayer.get_state()
     if vlc_state == vlc.State.Paused:
@@ -207,16 +211,23 @@ def music_pause():
 def music_stop():
     musicplayer.stop()
 
-def off():
+def clear_songlist():
+    state["song_list"] = []
+    state["song_bucket"] = []
+
+def all_off():
     state["light_remain_time"] = 0
     state["fog_remain_time"] = 0
     state["quaerter_count"] = 0
     state["light_on"] = False
+    clear_songlist()
     raw_laser(on=False)
     raw_light(on=False)
     set_time_fog(0)
     music_stop()
 
+def reset_timeout(timeout=60*60):
+    state["light_remain_time"] = timeout
 
 specials = {
     "JK1": [raw_laser, {"on": True}],
@@ -225,7 +236,7 @@ specials = {
     "JK4": [set_time_fog, {"time": 0}],
     "JK9": [music_pause, {}],
     "JK0": [music_stop, {}],
-    "HJK0": [off, {}],
+    "HJK0": [all_off, {}],
 }
 
 def clicky_noise():
@@ -259,7 +270,7 @@ def readTT(button_map):
     return "".join(pressed)
 
 
-async def do_button():
+async def loop_button():
     period = 0.05
     while True:
         await asyncio.sleep(period)
@@ -283,7 +294,7 @@ async def do_button():
 
 
 # Run the fog for a short time (or forever? >@_@< )
-async def do_fog():
+async def loop_fog():
     while True:
         if state["fog_remain_time"]:
             print(f"Fog countdown {state['fog_remain_time']}")
@@ -294,7 +305,7 @@ async def do_fog():
             GPIO.output(relay_fog, False)
             await asyncio.sleep(1)
 
-async def do_light():
+async def loop_light():
     while True:
         if state["light_remain_time"]:
 #            print(f"Light countdown {state['light_remain_time']}")
@@ -304,21 +315,22 @@ async def do_light():
                 state["light_on"] = True
             await asyncio.sleep(1)
         else:
-            raw_light(on=False)
-            raw_laser(on=False)
-            state["light_on"] = False
+            clear_songlist()
+            if not is_music_playing():
+                all_off()
             await asyncio.sleep(1)
 
-async def do_quarter():
+async def loop_quarter():
     while True:
         qtr = await see_quarter()
         if qtr:
+            reset_timeout()
             print(f"{qtr}")
             state["quarter_count"]+=1
             print(f"See Quarter! {state['quarter_count']}")
         await asyncio.sleep(0.1)
 
-async def do_songplay():
+async def loop_songplay():
     while True:
         await asyncio.sleep(1)
         vlc_state = musicplayer.get_state()
@@ -398,23 +410,20 @@ def execute_buttons(buttons):
         
     return False
 
-async def do_statemachine():
+async def loop_statemachine():
     while True:
         await asyncio.sleep(1)
         if state["quarter_count"]>0:
             print("Consume Quarter")
             state["quarter_count"]-=1
             state["fog_remain_time"] =  state["fog_remain_time"] + 3
-            state["light_remain_time"] = 60*60;
+            reset_timeout()
         if not state["light_on"]:
             # Put in a quarter if you want music, etc!
             continue
         buttons = "".join(state["button_list"])
         if execute_buttons(buttons):
             state["button_list"] = ["X"]
-    
-def playpause():
-    os.system("qdbus org.mpris.MediaPlayer2.vlc /org/mpris/MediaPlayer2 org.mpris.MediaPlayer2.Player.PlayPause")
 
 sputter_light()
 
@@ -427,12 +436,12 @@ GPIO.output(power_fog, True)
 
 async def main():
     await asyncio.gather(
-        do_light(),
-        do_fog(),
-        do_quarter(),
-        do_statemachine(),
-        do_button(),
-        do_songplay(),
+        loop_light(),
+        loop_fog(),
+        loop_quarter(),
+        loop_statemachine(),
+        loop_button(),
+        loop_songplay(),
     )
 
 asyncio.run(main())
