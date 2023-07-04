@@ -4,11 +4,13 @@ import asyncio
 import time
 from huesdk import Hue
 from random import randint
+from playsound import playsound
 import RPi.GPIO as GPIO
 import yaml
 import os
 import vlc
 GPIO.setmode(GPIO.BCM)
+
 
 
 state = {
@@ -233,10 +235,11 @@ specials = {
 }
 
 def clicky_noise():
-    clickplayer.stop()
-    clickplayer.play()
-    time.sleep(0.001)
-    clickplayer.set_time(520)
+    playsound("./RelayClick.mp3", False)
+    #clickplayer.stop()
+    #clickplayer.play()
+    #time.sleep(0.001)
+    #clickplayer.set_time(520)
 
 def readTT(button_map):
     # A group of four buttons is read off one wire
