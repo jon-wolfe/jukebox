@@ -16,6 +16,7 @@ state = {
     'fog_remain_time': 0,
     'light_remain_time': 0,
     'light_on': False,
+    'laser_on': False,
     'button_list': ['X'],   # Each button pushed to end of list when pressed
     'button_capture': '',  # The last-observed button (no double-count!)
     'button_forget': 0,     # Allow double-count after timeout
@@ -166,39 +167,48 @@ async def see_quarter():
     return False
 
 # Turn on (or off) the laser
-def do_laser(on=True):
+def raw_laser(on=True):
     GPIO.output(relay_laser, on)
+    state["laser_on"] = on
 
 # Turn on (or off) the main white JukeBox lights
-def do_lights(on=True):
+def raw_light(on=True):
     GPIO.output(relay_lights, not on)
+    state["light_on"] = on
 
 # Make the lights "cold start" like an old fluorescent
-def sputter_lights():
-    do_lights()
+def sputter_light():
+    raw_light()
     time.sleep(0.05)
-    do_lights(False)
+    raw_light(False)
     time.sleep(0.1)
-    do_lights()
+    raw_light()
     time.sleep(0.15)
-    do_lights(False)
+    raw_light(False)
     time.sleep(0.2)
-    do_lights()
+    raw_light()
 
-def make_fog(time=3):
+# Make the lights "wink" for user-feedback
+def wink_light():
+    on = state["light_on"]
+    raw_light(on=not on)
+    time.sleep(0.05)
+    raw_light(on=on)
+
+def set_time_fog(time=3):
     if time==0:
         state["fog_remain_time"]=0
     else:
         state["fog_remain_time"]+=time
 
-def pause():
+def music_pause():
     vlc_state = musicplayer.get_state()
     if vlc_state == vlc.State.Paused:
         musicplayer.play()
     else:
         musicplayer.pause()
 
-def stop():
+def music_stop():
     musicplayer.stop()
 
 def off():
@@ -206,20 +216,19 @@ def off():
     state["fog_remain_time"] = 0
     state["quaerter_count"] = 0
     state["light_on"] = False
-    do_laser(on=False)
-    do_lights(on=False)
-    make_fog(0)
-    stop()
-
+    raw_laser(on=False)
+    raw_light(on=False)
+    set_time_fog(0)
+    music_stop()
 
 
 specials = {
-    "JK1": [do_laser, {"on": True}],
-    "JK2": [do_laser, {"on": False}],
-    "JK3": [make_fog, {"time": 10}],
-    "JK4": [make_fog, {"time": 0}],
-    "JK9": [pause, {}],
-    "JK0": [stop, {}],
+    "JK1": [raw_laser, {"on": True}],
+    "JK2": [raw_laser, {"on": False}],
+    "JK3": [set_time_fog, {"time": 10}],
+    "JK4": [set_time_fog, {"time": 0}],
+    "JK9": [music_pause, {}],
+    "JK0": [music_stop, {}],
     "HJK0": [off, {}],
 }
 
@@ -267,6 +276,7 @@ async def do_button():
         current = readTT(button_map)
         if current and current != state["button_capture"]:
             clicky_noise()
+            wink_light()
             state["button_newpress"] = True
         if current:
             state["button_forget"] = 3
@@ -297,12 +307,12 @@ async def do_light():
 #            print(f"Light countdown {state['light_remain_time']}")
             state["light_remain_time"]-=1
             if not state["light_on"]:
-                sputter_lights()
+                sputter_light()
                 state["light_on"] = True
             await asyncio.sleep(1)
         else:
-            do_lights(on=False)
-            do_laser(on=False)
+            raw_light(on=False)
+            raw_laser(on=False)
             state["light_on"] = False
             await asyncio.sleep(1)
 
@@ -413,7 +423,7 @@ async def do_statemachine():
 def playpause():
     os.system("qdbus org.mpris.MediaPlayer2.vlc /org/mpris/MediaPlayer2 org.mpris.MediaPlayer2.Player.PlayPause")
 
-sputter_lights()
+sputter_light()
 
 # Warmup the fog machine
 #print("Disabling the Fog machine.  (Break here to keep off).")
@@ -440,7 +450,7 @@ exit(1)
 GPIO.output(power_fog, True)
 time.sleep(1)
 do_fog(10)
-do_laser()
+raw_laser()
 GPIO.output(relay_left, False)
 GPIO.output(relay_right, False)
 
@@ -466,7 +476,7 @@ while(1):
     button = readTT(button_map)
     if button and button != last_button:
         print(button)
-        clickplayer.stop()
+        clickplayer.music_stop()
         clickplayer.play()
         time.sleep(0.001)
         clickplayer.set_time(520)
@@ -479,9 +489,9 @@ while(1):
             sel = f"{cl}{cn}"
             print(f"I will play {sel}")
             if sel=="A0":
-                do_laser(True)
+                raw_laser(True)
             elif sel=="B0":
-                do_laser(False) 
+                raw_laser(False) 
             elif sel=="C0":
                 GPIO.output(power_fog, True)
             elif sel=="D0":
@@ -491,28 +501,28 @@ while(1):
             elif sel=="J0":
                 musicplayer.next()
             elif sel=="K0":
-                musicplayer.stop()
+                musicplayer.music_stop()
 
             elif sel=="H0":
                 song = "PaulMcCartney/OdeToAKoalaBear.mp3"
                 mediaList = instance.media_list_new()
                 m = instance.media_new(f"file://{root}/{song}")
                 mediaList.add_media(m)
-                musicplayer.stop()
+                musicplayer.music_stop()
                 musicplayer.set_media_list(mediaList)
                 musicplayer.play()
                 do_fog(3)
-                do_laser(True)
+                raw_laser(True)
             elif sel=="F0":
                 song="LilNasX/OldTownRoad.mp3"
                 mediaList = instance.media_list_new()
                 m = instance.media_new(f"file://{root}/{song}")
                 mediaList.add_media(m)
-                musicplayer.stop()
+                musicplayer.music_stop()
                 musicplayer.set_media_list(mediaList)
                 musicplayer.play()
                 do_fog(3)
-                do_laser(True)
+                raw_laser(True)
             elif sel in config["music"]:
                 root = config["music_dir"]
                 songs = config["music"][sel]
@@ -525,7 +535,7 @@ while(1):
                 else:
                     m = instance.media_new(f"file://{root}/{songs}")
                     mediaList.add_media(m)
-                musicplayer.stop()
+                musicplayer.music_stop()
                 musicplayer.set_media_list(mediaList)
                 musicplayer.get_media_player().audio_set_volume(1)
                 musicplayer.play()
@@ -538,7 +548,7 @@ while(1):
     
 print("Preparing to Warmup Fog")
 GPIO.output(power_fog, True)
-do_lights(False)
+raw_light(False)
     
     
 # Do a mini-show (demo) when a quarter is inserted
@@ -547,15 +557,15 @@ while True:
     print("Ready for quarter")
     while not see_quarter():
         continue
-    sputter_lights()
+    sputter_light()
     do_fog(3)
     randomize_each_hue(lights)
-    do_laser()
+    raw_laser()
     playpause()
     randomize_random_hue(lights)
     time.sleep(60)
-    do_laser(False)
-    do_lights(False)
+    raw_laser(False)
+    raw_light(False)
     write_hue(lights, orig_hls)
 
 GPIO.cleanup()
