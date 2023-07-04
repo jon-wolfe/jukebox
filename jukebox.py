@@ -32,9 +32,9 @@ state = {
 with open("config.yaml","r") as configfile:
     config = yaml.load(configfile, Loader=yaml.Loader)
 
-#with open("hue_config.yaml","r") as configfile:
-#    hue_config = yaml.load(configfile, Loader=yaml.Loader)
-hue_config = [0,0,0,0,0,0,0,0,0]
+with open("hue_config.yaml","r") as configfile:
+    hue_config = yaml.load(configfile, Loader=yaml.Loader)
+#hue_config = [0,0,0,0,0,0,0,0,0,0]
 
 # Connect to our bridge
 hue = Hue(bridge_ip=config["hue_ip"], username=config["hue_username"])
