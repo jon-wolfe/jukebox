@@ -146,12 +146,6 @@ GPIO.output(relay_right, False)
 ###############################################
 instance = vlc.Instance("--loop")
 
-# Click Player plays jukebox mechanical button noises
-clickplayer = instance.media_player_new()
-clickplayer.audio_set_volume(50)
-m = instance.media_new("file:///home/jon/Downloads/twoclick.mp3")
-clickplayer.set_media(m)
-
 # Music player plays the actual records
 musicplayer = instance.media_list_player_new()
 #musicplayer.audio_set_volume(100)
@@ -236,10 +230,6 @@ specials = {
 
 def clicky_noise():
     playsound("./RelayClick.mp3", False)
-    #clickplayer.stop()
-    #clickplayer.play()
-    #time.sleep(0.001)
-    #clickplayer.set_time(520)
 
 def readTT(button_map):
     # A group of four buttons is read off one wire
@@ -450,104 +440,6 @@ asyncio.run(main())
 
 exit(1)
 
-GPIO.output(power_fog, True)
-time.sleep(1)
-do_fog(10)
-raw_laser()
-GPIO.output(relay_left, False)
-GPIO.output(relay_right, False)
-
-instance = vlc.Instance("--loop")
-
-# Click Player plays jukebox mechanical button noises
-clickplayer = instance.media_player_new()
-clickplayer.audio_set_volume(50)
-m = instance.media_new("file:///home/jon/Downloads/twoclick.mp3")
-clickplayer.set_media(m)
-
-# Music player plays the actual records
-musicplayer = instance.media_list_player_new()
-#musicplayer.audio_set_volume(100)
-musicplayer.get_media_player().audio_set_volume(20)
-
-
-root = config["music_dir"]
-last_button = ''
-cl = None
-cn = None
-while(1):
-    button = readTT(button_map)
-    if button and button != last_button:
-        print(button)
-        clickplayer.music_stop()
-        clickplayer.play()
-        time.sleep(0.001)
-        clickplayer.set_time(520)
-        last_button = button
-        if button in letters:
-            cl = button
-        elif button in numbers:
-            cn = button
-        if cl and cn:
-            sel = f"{cl}{cn}"
-            print(f"I will play {sel}")
-            if sel=="A0":
-                raw_laser(True)
-            elif sel=="B0":
-                raw_laser(False) 
-            elif sel=="C0":
-                GPIO.output(power_fog, True)
-            elif sel=="D0":
-                GPIO.output(power_fog, False)
-            elif sel=="E0":
-                do_fog(3)
-            elif sel=="J0":
-                musicplayer.next()
-            elif sel=="K0":
-                musicplayer.music_stop()
-
-            elif sel=="H0":
-                song = "PaulMcCartney/OdeToAKoalaBear.mp3"
-                mediaList = instance.media_list_new()
-                m = instance.media_new(f"file://{root}/{song}")
-                mediaList.add_media(m)
-                musicplayer.music_stop()
-                musicplayer.set_media_list(mediaList)
-                musicplayer.play()
-                do_fog(3)
-                raw_laser(True)
-            elif sel=="F0":
-                song="LilNasX/OldTownRoad.mp3"
-                mediaList = instance.media_list_new()
-                m = instance.media_new(f"file://{root}/{song}")
-                mediaList.add_media(m)
-                musicplayer.music_stop()
-                musicplayer.set_media_list(mediaList)
-                musicplayer.play()
-                do_fog(3)
-                raw_laser(True)
-            elif sel in config["music"]:
-                root = config["music_dir"]
-                songs = config["music"][sel]
-                mediaList = instance.media_list_new()
-                if isinstance(songs, list):
-                    for song in songs:
-                        print(f"Adding song {song}")
-                        m = instance.media_new(f"file://{root}/{song}")
-                        mediaList.add_media(m)
-                else:
-                    m = instance.media_new(f"file://{root}/{songs}")
-                    mediaList.add_media(m)
-                musicplayer.music_stop()
-                musicplayer.set_media_list(mediaList)
-                musicplayer.get_media_player().audio_set_volume(1)
-                musicplayer.play()
-                musicplayer.get_media_player().audio_set_volume(1)
-                
-
-            cl = None
-            cn = None
-    
     
 print("Preparing to Warmup Fog")
 GPIO.output(power_fog, True)
