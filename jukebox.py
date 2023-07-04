@@ -32,6 +32,10 @@ state = {
 with open("config.yaml","r") as configfile:
     config = yaml.load(configfile, Loader=yaml.Loader)
 
+#with open("hue_config.yaml","r") as configfile:
+#    hue_config = yaml.load(configfile, Loader=yaml.Loader)
+hue_config = [0,0,0,0,0,0,0,0,0]
+
 # Connect to our bridge
 hue = Hue(bridge_ip=config["hue_ip"], username=config["hue_username"])
 lights = hue.get_lights()
@@ -45,6 +49,14 @@ def read_hue(lights):
         old_hls[light.id_] = (light.hue, light.bri, light.sat)
     print("  Gathered")
     return old_hls
+
+def read_hue_slot(slot):
+    hue_config[slot] = read_hue(lights)
+
+def save_hue_config():
+    with open("hue_config.yaml","w") as configfile:
+        yaml.safe_dump(hue_config, configfile)
+
 orig_hls = read_hue(lights)
 
 # Restore a set of lights using a dicts of id->(H,L,S)
@@ -55,6 +67,9 @@ def write_hue(lights, id_to_hls):
         light.set_color(hue=hls[0])  
         light.set_brightness(hls[1])  
         light.set_saturation(hls[2]) 
+
+def write_hue_slot(slot):
+    write_hue(lights, hue_config[slot])
 
 # These default colors were chosen by my 8yo son to look like minecraft
 def randomize_a_hue(light, H=(17000,25000), L=(5,254), S=(254,254)):
@@ -230,6 +245,25 @@ def reset_timeout(timeout=60*60):
     state["light_remain_time"] = timeout
 
 specials = {
+    "ABC1": [write_hue_slot, {"slot": 1}],
+    "ABC2": [write_hue_slot, {"slot": 2}],
+    "ABC3": [write_hue_slot, {"slot": 3}],
+    "ABC4": [write_hue_slot, {"slot": 4}],
+    "ABC5": [write_hue_slot, {"slot": 5}],
+    "ABC6": [write_hue_slot, {"slot": 6}],
+    "ABC7": [write_hue_slot, {"slot": 7}],
+    "ABC8": [write_hue_slot, {"slot": 8}],
+    "ABC9": [write_hue_slot, {"slot": 9}],
+    "ABD1": [read_hue_slot, {"slot": 1}],
+    "ABD2": [read_hue_slot, {"slot": 2}],
+    "ABD3": [read_hue_slot, {"slot": 3}],
+    "ABD4": [read_hue_slot, {"slot": 4}],
+    "ABD5": [read_hue_slot, {"slot": 5}],
+    "ABD6": [read_hue_slot, {"slot": 6}],
+    "ABD7": [read_hue_slot, {"slot": 7}],
+    "ABD8": [read_hue_slot, {"slot": 8}],
+    "ABD9": [read_hue_slot, {"slot": 9}],
+    "ABD0": [save_hue_config, {}],
     "JK1": [raw_laser, {"on": True}],
     "JK2": [raw_laser, {"on": False}],
     "JK3": [set_time_fog, {"time": 10}],
@@ -337,6 +371,9 @@ async def loop_songplay():
         if vlc_state == vlc.State.Playing:
             continue
         if vlc_state not in [
+            vlc.State.Playing,
+            vlc.State.Paused,
+            vlc.State.Stopped,
             vlc.State.NothingSpecial,
             vlc.State.Ended,
         ]:
